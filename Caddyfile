@@ -1,0 +1,54 @@
+{
+	admin off
+	auto_https off
+	persist_config off
+	servers {
+		trusted_proxies static private_ranges 100.64.0.0/10
+	}
+}
+
+:{$PORT:8080} {
+	# Health check for Railway: the app's own tRPC ping, no login needed.
+	handle /healthz {
+		rewrite * /api/ping
+		reverse_proxy 127.0.0.1:6281 {
+			header_up Host 127.0.0.1:6281
+		}
+	}
+
+	# MCP endpoint (Streamable HTTP, plus the older SSE transport).
+	@mcp path /mcp /mcp/* /sse /sse/* /messages /messages/*
+	handle @mcp {
+		# CORS preflights carry no token; the server answers them itself without running a tool.
+		@preflight method OPTIONS
+		handle @preflight {
+			reverse_proxy 127.0.0.1:6281 {
+				header_up Host 127.0.0.1:6281
+			}
+		}
+		@authed header Authorization "Bearer {$MCP_AUTH_TOKEN}"
+		handle @authed {
+			reverse_proxy 127.0.0.1:6281 {
+				header_up -Authorization
+				header_up Host 127.0.0.1:6281
+				flush_interval -1
+			}
+		}
+		handle {
+			header WWW-Authenticate "Bearer realm=\"docs-mcp-server\""
+			respond "Unauthorized: send Authorization: Bearer MCP_AUTH_TOKEN" 401
+		}
+	}
+
+	# Web UI, its API and the live-update WebSocket: generated username and password.
+	handle {
+		basic_auth {
+			{$WEB_USERNAME} {$WEB_PASSWORD_HASH}
+		}
+		reverse_proxy 127.0.0.1:6281 {
+			header_up -Authorization
+			header_up Host 127.0.0.1:6281
+			flush_interval -1
+		}
+	}
+}

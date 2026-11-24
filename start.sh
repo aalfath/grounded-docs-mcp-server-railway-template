@@ -56,9 +56,10 @@ WEB_PASSWORD_HASH=$(caddy hash-password --plaintext "$WEB_PASSWORD") || fail "co
 export WEB_PASSWORD_HASH
 unset WEB_PASSWORD
 
-# Keep the server and Caddy out of the kernel's OOM choice; the Chromium
-# wrapper raises its own score, so a heavy page kills only its render.
-echo -900 > /proc/self/oom_score_adj 2>/dev/null || echo "start.sh: could not lower oom_score_adj (continuing)" >&2
+# The Chromium wrapper raises its own OOM score to 1000, so a heavy page kills
+# only its render. Lowering the server's score as well needs CAP_SYS_RESOURCE,
+# which Railway doesn't grant, so this is best effort and silent.
+echo -900 > /proc/self/oom_score_adj 2>/dev/null || true
 
 RUN="env HOME=/home/node setpriv --reuid=node --regid=node --init-groups"
 

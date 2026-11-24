@@ -60,14 +60,14 @@ unset WEB_PASSWORD
 # wrapper raises its own score, so a heavy page kills only its render.
 echo -900 > /proc/self/oom_score_adj 2>/dev/null || echo "start.sh: could not lower oom_score_adj (continuing)" >&2
 
-RUN="setpriv --reuid=node --regid=node --init-groups"
+RUN="env HOME=/home/node setpriv --reuid=node --regid=node --init-groups"
 
 $RUN node --enable-source-maps dist/index.js server \
   --protocol http --host 127.0.0.1 --port "$APP_PORT" --no-logo &
 APP_PID=$!
 
 # Caddy holds only the bearer token and the password hash, not the provider keys.
-env -u OPENAI_API_KEY -u GOOGLE_API_KEY $RUN caddy run --config /etc/caddy/Caddyfile --adapter caddyfile &
+env -u OPENAI_API_KEY -u GOOGLE_API_KEY XDG_DATA_HOME=/tmp/caddy-data $RUN caddy run --config /etc/caddy/Caddyfile --adapter caddyfile &
 CADDY_PID=$!
 
 trap 'kill "$APP_PID" "$CADDY_PID" 2>/dev/null; exit 0' TERM INT

@@ -7,7 +7,8 @@ USER root
 COPY --from=caddy /usr/bin/caddy /usr/local/bin/caddy
 COPY Caddyfile /etc/caddy/Caddyfile
 COPY start.sh /usr/local/bin/start.sh
-RUN chmod 755 /usr/local/bin/start.sh /usr/local/bin/caddy \
+COPY chromium-wrapper.sh /usr/local/bin/chromium-railway
+RUN chmod 755 /usr/local/bin/start.sh /usr/local/bin/caddy /usr/local/bin/chromium-railway \
  && caddy version \
  && node dist/index.js --version
 # Everything the app keeps (database and config.yaml) lives on the /data volume.
@@ -15,6 +16,7 @@ ENV PORT=8080 \
     DOCS_MCP_STORE_PATH=/data \
     SQLITE_TMPDIR=/data \
     XDG_CONFIG_HOME=/data/config \
+    PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/local/bin/chromium-railway \
     GOMAXPROCS=1 \
     GOMEMLIMIT=64MiB
 EXPOSE 8080

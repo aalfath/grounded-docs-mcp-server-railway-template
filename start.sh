@@ -40,6 +40,7 @@ if [ "$MEM_MB" -gt 0 ] && [ "$MEM_MB" -lt 1500 ]; then
   # One page at a time keeps Chromium's renderer inside 0.5-1 GB.
   : "${DOCS_MCP_SCRAPER_MAX_CONCURRENCY:=1}"
   export DOCS_MCP_SCRAPER_MAX_CONCURRENCY
+  export CHROMIUM_LOW_MEMORY=1
   heap=$((MEM_MB * 40 / 100))
   [ "$heap" -lt 160 ] && heap=160
   case " ${NODE_OPTIONS:-} " in *max-old-space-size*) ;; *) export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=$heap" ;; esac
@@ -54,6 +55,10 @@ export LOG_LEVEL="${LOG_LEVEL:-INFO}"
 WEB_PASSWORD_HASH=$(caddy hash-password --plaintext "$WEB_PASSWORD") || fail "could not hash WEB_PASSWORD"
 export WEB_PASSWORD_HASH
 unset WEB_PASSWORD
+
+# Keep the server and Caddy out of the kernel's OOM choice; the Chromium
+# wrapper raises its own score, so a heavy page kills only its render.
+echo -900 > /proc/self/oom_score_adj 2>/dev/null || echo "start.sh: could not lower oom_score_adj (continuing)" >&2
 
 RUN="setpriv --reuid=node --regid=node --init-groups"
 
